@@ -7,12 +7,14 @@ import {
   SignIn,
   SignInButton,
   UserButton,
+  useUser,
 } from "@clerk/clerk-react";
 import { BriefcaseBusiness, Heart, PenBox } from "lucide-react";
 
 const Header = () => {
   const [showSignin, setShowSignin] = useState(false);
   const [search, setSearch] = useSearchParams();
+  const { user } = useUser();
 
   useEffect(() => {
     if (search.get("sign-in")) {
@@ -26,6 +28,7 @@ const Header = () => {
       setSearch();
     }
   };
+
   return (
     <>
       <nav className="py-4 flex justify-between items-center">
@@ -40,13 +43,14 @@ const Header = () => {
             </Button>
           </SignedOut>
           <SignedIn>
-            <Link to={"/post-job"}>
-              {/* add a condition here  */}
-              <Button variant="destructive" className="rounded-full">
-                <PenBox className="mr-2" />
-                Post a Job
-              </Button>
-            </Link>
+            {user?.unsafeMetadata?.role === "recruiter" && (
+              <Link to={"/post-job"}>
+                <Button variant="destructive" className="rounded-full">
+                  <PenBox className="mr-2" />
+                  Post a Job
+                </Button>
+              </Link>
+            )}
             <UserButton
               appearance={{
                 elements: {
@@ -72,7 +76,7 @@ const Header = () => {
       </nav>
       {showSignin && (
         <div
-          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
+          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-10"
           onClick={handleOverlayClick}
         >
           <SignIn
