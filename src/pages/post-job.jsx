@@ -1,4 +1,7 @@
+import { addNewJob } from "@/api/apiJobs";
 import { getCompanies } from "@/api/apiCompanies";
+import AddCompanyDrawer from "@/components/add-company-drawer";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -12,10 +15,12 @@ import { Textarea } from "@/components/ui/textarea";
 import useFetch from "@/hooks/use-fetch";
 import { useUser } from "@clerk/clerk-react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import MDEditor from "@uiw/react-md-editor";
 import { State } from "country-state-city";
 import React, { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
+import { BarLoader } from "react-spinners";
 import { z } from "zod";
 
 const schema = z.object({
@@ -43,9 +48,37 @@ const PostJob = () => {
     data: companies,
     loading: loadingCompanies,
   } = useFetch(getCompanies);
+
+  const {
+    fn: fnCreateJob,
+    data: dataCreateJob,
+    loading: loadingCreateJob,
+    error: errorCreateJob,
+  } = useFetch(addNewJob);
+
+  const onSubmit = (data) => {
+    fnCreateJob({
+      ...data,
+      recruiter_id: user?.id,
+      isOpen: true,
+    });
+  };
+
   useEffect(() => {
     if (isLoaded) fnCompanies();
   }, [isLoaded]);
+
+  useEffect(() => {
+    if (dataCreateJob?.length > 0) {
+      navigate("/jobs");
+    }
+  }, [loadingCreateJob]);
+
+  if (!isLoaded || loadingCompanies) {
+    return <BarLoader className="mb-4" width={"100%"} color="#36d7b7" />;
+  }
+
+  if (user?.unsafeMetadata?.role !== "recruiter") navigate("/jobs");
 
   return (
     <div>
@@ -53,7 +86,7 @@ const PostJob = () => {
         Post a Job
       </h1>
       <form
-        // onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(onSubmit)}
         className="flex flex-col gap-4 p-4 pb-0"
       >
         <Input placeholder="Job Title" {...register("title")} />
@@ -63,22 +96,73 @@ const PostJob = () => {
         {errors.description && (
           <p className="text-red-500">{errors.description.message}</p>
         )}
-        <Select
-        // value={location} onValueChange={(value) => setLocation(value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select Location" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {State.getStatesOfCountry("IN").map(({ name }) => (
-                <SelectItem key={name} value={name}>
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-4 items-center">
+          <Controller
+            name="location"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {State.getStatesOfCountry("IN").map(({ name }) => (
+                      <SelectItem key={name} value={name}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            )}
+          />
+          <Controller
+            name="company_id"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Company">
+                    {field.value
+                      ? companies?.find((com) => com.id === Number(field.value))
+                          ?.name
+                      : "Company"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {companies?.map(({ name, id }) => (
+                      <SelectItem key={name} value={id}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
+        <AddCompanyDrawer fetchCompanies={fnCompanies} />
+        {errors.location && (
+          <p className="text-red-500">{errors.location.message}</p>
+        )}
+        {errors.company_id && (
+          <p className="text-red-500">{errors.company_id.message}</p>
+        )}
+        <Controller
+          name="requirements"
+          control={control}
+          render={({ field }) => (
+            <MDEditor value={field.value} onChange={field.onChange} />
+          )}
+        />
+        {errors.requirements && (
+          <p className="text-red-500">{errors.requirements.message}</p>
+        )}
+        <Button type="submit" variant="blue" size="lg" className="mt-2">
+          Submit
+        </Button>
       </form>
     </div>
   );
